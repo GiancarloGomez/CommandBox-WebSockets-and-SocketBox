@@ -1,0 +1,11 @@
+{
+    "modules": {
+        "compat-cfml": {
+            "settings": {
+                "transpiler": {
+                    "upperCaseKeys": false
+                }
+            }
+        }
+    }
+}

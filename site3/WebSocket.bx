@@ -1,0 +1,126 @@
+class extends="modules.socketbox.models.WebSocketSTOMP" {
+	/**
+	 * Here we configure our exchanges, listeners, and settings.
+	 * This method will only be run once when the server starts UNLESS `debugMode` is set to `true`.
+	 */
+	function configure() {
+		return {
+			// Set to try (dynamically if you wish) to reload the config on EVERY request (for development only!)
+			"debugMode" : true,
+			// How often to send a heartbeat to the client (in milliseconds)
+			"heartBeatMS" : 10000,
+			// Here we configure the exchanges and their bindings which will process incoming messages.
+			// Remember, all messages are send first to an exchange for routing.
+			// The DirectExchange will be configured automatically even if we don't include it below.  It's default use require on special config.
+			"exchanges" : {
+				// Direct exchange routes messages to a single destination
+				"direct" : {
+					"bindings" : {
+						"rock" : "rock-music",
+						"rap"  : "rap-music"
+					}
+				},
+				// Topic exchange routes messages based on a pattern match to their incoming destination
+				"topic" : {
+					"bindings" : {
+						"music.*" : "all-music",
+						"music.rock" : "rock-music",
+						"music.rap"  : "rap-music"
+					}
+				},
+				// Fanout exchange routes messages to all bound destinations
+				"fanout" : {
+					"bindings" : {
+						"all-music" : [ "rock-music", "rap-music" ]
+					}
+				},
+				// Distribution exchange routes messages to a single destinations at a time in a round-robin or random fashion
+				"distribution" : {
+					// roundrobin or random
+					"type" : "roundrobin",
+					"bindings" : {
+						"distribute-music" : [ "rock-music", "rap-music" ]
+					}
+				}
+			},
+			// Our Websocket clients can create subscriptions to destinations, but we can also define server-side listeners
+			"subscriptions" : {
+				"global-music" : ( message ) => {
+					send(
+						"all-music",
+						{ "data":"This is for all music!!!" }
+					);
+				},
+				"jokes" : ( message ) => {
+					systemOutput( "THE COMMAND : " & message.getCommand() );
+					systemOutput( message.getBody() );
+					systemOutput( message.getBodyRaw() );
+					systemOutput( message.getHeaders() );
+					systemOutput(
+						isNull( message.getChannel() ) ?
+						"SERVER" :
+						message.getChannel().hashCode()
+					);
+				}
+			}
+		};
+	}
+
+	/**
+	 * Here we decide who can authenticate to our websocket. The username and passcode provided in the JS connect request will be passed to this method.
+	 * A hard-coded username and password in JavaScript isn't very secure, so you can also pass something like a JWT (JSON Web Token) that your app manages.
+	 * Alternatively, you can just use the session scope!  All cookies will be passed from the browser, so your users's session scope will be available here to
+	 * confirm who they are.
+	 *
+	 * Note, this method does not handle what topics they can subscribe to to pubish messages.  This ONLY handles authentication.  i.e., can they log in use the system?
+	 *
+	 * If you want to customize the reason message for an authentication failure, you can throw an exception with the type "STOMP-Authentication-failure" with a costom message.
+	 *
+	 * @login The username or token provided by the client
+	 * @passcode The password or token provided by the client
+	 * @host The host the client is connecting from
+	 * @channel The channel object for the connection
+	 *
+	 * @return boolean (true if they can authenticate, false if they cannot).
+	 */
+	boolean function authenticate( required string login, required string passcode, string host, required channel ) {
+		// Your custom logic here.  This is a demo, so it's open to anyone without a login.
+		// This method could have actually just been omitted, but it's here for the sake of the example.
+		// if ( arguments.login != "admin" || arguments.passcode != "password" ) {
+		// 	// Alternatively, just return false for a default failure message
+		// 	// throw( type="STOMP-Authentication-failure", message="You are not authorized to access this system." );
+		// 	return false;
+		// }
+
+		return true;
+	}
+
+	/**
+	 * Once a user is authenticated, we can authorize them to subscribe to specific destinations.  This is where you can control what topics they can subscribe to
+	 * and/or publish message to.  This method is only called for remote clients.  Code running on the server can subscribe to any destination.
+	 *
+	 * If you want to customize the reason message for an authorization failure, you can throw an exception with the type "STOMP-Authorization-failure" with a costom message.
+	 *
+	 * @login The username or token provided by the client when they authenticated
+	 * @exchange The exchange the client is trying to subscribe or publish to (direct, topic, fanout, distribution, etc)
+	 * @destination The destination the client is trying to subscribe or publish to.
+	 * @access The type of access the client is trying to get. "read" if they are subscribing and "write" if they are publishing.
+	 * @channel The channel object for the connection
+	 *
+	 * @return boolean (true if they can subscribe or publish, false if they cannot)
+	 */
+	boolean function authorize( required string login, required string exchange, required string destination, required string access, required channel ) {
+		// We want the sessionID for this connection, so we'll get the details about this channel's connection
+		var connectionDetails = getConnectionDetails( channel );
+		var sessionID  	 = connectionDetails[ "sessionID" ] ?: '';
+
+		// Only let people subscribe to their own ping/pongs
+		if( destination.lcase().startsWith( 'pong.' ) && destination != "pong." & sessionID ) {
+			// Alternatively, just return false for a default failure message
+			throw( type="STOMP-Authorization-failure", message="You can only subscribe to your own session's pings." );
+		}
+
+		// Everything else is OK
+		return true;
+	}
+}

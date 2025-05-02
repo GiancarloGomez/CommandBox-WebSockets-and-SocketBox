@@ -1,0 +1,50 @@
+function getJoke(){
+	var joke = "";
+	try {
+		categories = [
+			"animal",
+			"career",
+			"celebrity",
+			"dev",
+			// "explicit",
+			"fashion",
+			"food",
+			"history",
+			"money",
+			"movie",
+			"music",
+			"political",
+			"religion",
+			"science",
+			"sport",
+			"travel"
+		];
+		bx:http url     = "https://api.chucknorris.io/jokes/random?category=" & categories[ randRange(1,categories.len()) ]
+				timeout = 5
+				result  = "apiRequest";
+		joke = jsonDeserialize( apiRequest.fileContent ).value
+	}
+	catch ( any e ){
+		writeDump( e );
+		joke = "We could not fetch a funny joke so this is just the server responding";
+	}
+
+	return joke;
+}
+
+ws = new WebSocket();
+
+ws.send(
+	"global",
+	"Simple text message from the server @ " & dateTimeFormat( now(), "long" ),
+	{ server : true }
+);
+
+ws.send(
+	"jokes",
+	{
+		type : "message",
+		data : getJoke()
+	},
+	{ server : true }
+);

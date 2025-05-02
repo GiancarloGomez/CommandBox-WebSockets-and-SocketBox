@@ -1,0 +1,3 @@
+ws = new WebSocket();
+dump( ws.getSTOMPConnections() );
+dump( ws.getSubscriptions() );

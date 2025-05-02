@@ -1,0 +1,15 @@
+class {
+	this.name = "site3";
+	this.sessionManagement = true;
+
+	this.mappings = {
+		"/modules" = expandPath( "../modules" )
+	};
+
+	function onRequestStart( string targetPage ) {
+		if ( url.keyExists( "reload" ) ) {
+			applicationStop();
+			location("/",false);
+		}
+	}
+}
